@@ -1,0 +1,117 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+
+@theme {
+  --font-sans: "Inter", "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --color-brand-primary: var(--accent-color);
+  --color-brand-secondary: #ec4899;
+  --color-brand-accent: var(--accent-color);
+  --color-soft-bg: var(--bg-color);
+  --color-panel: var(--panel-bg);
+  --color-panel-hover: var(--panel-hover);
+  --color-main: var(--text-main);
+  --color-dim: var(--text-dim);
+  --color-border: var(--border-color);
+}
+
+:root {
+  /* Light Academic Theme */
+  --bg-color: #f8fafc;
+  --panel-bg: #ffffff;
+  --panel-hover: #f1f5f9;
+  --nav-bg: rgba(255, 255, 255, 0.8);
+  --text-main: #0f172a;
+  --text-dim: #64748b;
+  --accent-color: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.08);
+  --border-color: #e2e8f0;
+  --border-soft: #f1f5f9;
+  --shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dark, [data-theme='dark'] {
+  /* Refined Dark Theme */
+  --bg-color: #020617;
+  --panel-bg: #0f172a;
+  --panel-hover: #1e293b;
+  --nav-bg: rgba(2, 6, 23, 0.8);
+  --text-main: #f8fafc;
+  --text-dim: #94a3b8;
+  --accent-color: #38bdf8;
+  --accent-soft: rgba(56, 189, 248, 0.1);
+  --border-color: #1e293b;
+  --border-soft: #1e293b;
+  --shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-nav {
+  backdrop-filter: blur(16px);
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+  transition: background 0.3s ease, border 0.3s ease;
+}
+
+.glass-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  transition: all 0.3s ease;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--text-main) 0%, var(--accent-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.tag {
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent-color);
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.section-title {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--text-main);
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-title svg {
+  color: var(--accent-color);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color);
+}

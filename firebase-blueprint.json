@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Stores user account details and roles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique Firebase Auth UID." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "displayName": { "type": "string", "description": "The user's full name." },
+        "role": { "type": "string", "enum": ["admin", "student"], "description": "Access level of the user." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when account was created." }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "StudyMaterial": {
+      "title": "StudyMaterial",
+      "description": "Digital study resources uploaded by admins.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "branch": { "type": "string" },
+        "semester": { "type": "string" },
+        "type": { "type": "string" },
+        "file_url": { "type": "string" },
+        "filename": { "type": "string" },
+        "uploaderUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "branch", "semester", "type", "file_url", "uploaderUid"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles indexed by UID."
+    },
+    "/materials/{materialId}": {
+      "schema": "StudyMaterial",
+      "description": "Collection of all study materials."
+    }
+  }
+}

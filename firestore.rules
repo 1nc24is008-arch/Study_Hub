@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (Firebase Auth UID)
+    // Fields:
+    //   - uid: string (required) - matching the document ID
+    //   - email: string (required, email format)
+    //   - displayName: string (optional)
+    //   - role: string (required, ['admin', 'student'])
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: materials
+    // Document ID: {materialId} (Auto-generated)
+    // Fields:
+    //   - title: string (required, 3-200 chars)
+    //   - description: string (optional, < 1000 chars)
+    //   - branch: string (required, ['CSE', 'AI/ML', 'DS', 'ISE', 'ECE', 'MECH', 'CIVIL', 'First Year', 'All'])
+    //   - semester: string (required, ['1', '2', ..., '8', 'All'])
+    //   - type: string (required, ['Notes', 'Syllabus', 'Model Paper', 'Lab Manual', 'Exam Time Table', 'Academic Calendar', 'Other'])
+    //   - file_url: string (required, URL)
+    //   - storage_path: string (required)
+    //   - uploaderUid: string (required)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        (request.auth.token.email == "1nc24is008@ncetmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.uid.size() < 128 &&
+             isValidEmail(data.email) && data.email.size() < 256 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             data.role in ['admin', 'student'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidMaterial(data) {
+      return data.keys().hasAll(['title', 'branch', 'semester', 'type', 'file_url', 'uploaderUid', 'createdAt', 'storage_path']) &&
+             data.title is string && data.title.size() >= 3 && data.title.size() < 200 &&
+             (!('description' in data) || (data.description is string && data.description.size() < 1000)) &&
+             data.branch in ['CSE', 'AI/ML', 'DS', 'ISE', 'ECE', 'MECH', 'CIVIL', 'First Year', 'All'] &&
+             data.semester in ['1', '2', '3', '4', '5', '6', '7', '8', 'All'] &&
+             data.type in ['Notes', 'Syllabus', 'Model Paper', 'Lab Manual', 'Exam Time Table', 'Academic Calendar', 'Other'] &&
+             isValidUrl(data.file_url) && data.file_url.size() < 1000 &&
+             data.storage_path is string && data.storage_path.size() < 500 &&
+             data.uploaderUid == request.auth.uid &&
+             data.uploaderUid.size() < 128 &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Users can create their own profile. Admin role can only be claimed if master email or already an admin.
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (
+        request.resource.data.role == 'student' || isAdmin()
+      );
+      // Users cannot change their role themselves once created.
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (
+        request.resource.data.role == resource.data.role || isAdmin()
+      );
+    }
+
+    match /materials/{materialId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidMaterial(request.resource.data);
+      allow update: if isAdmin() && isValidMaterial(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Default deny for all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
