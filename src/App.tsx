@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
-import { Upload, Search, Mail, Download, Trash2, ChevronRight, FileText, Book, FileCheck, Layers, Info, Instagram, Send, MessageCircle, ExternalLink, Calculator, Plus, X, Lock, Eye, EyeOff, User, LogOut, Key, Quote, PlusCircle, Flame, History, School, GraduationCap, Github, Moon, Sun, Sparkles } from 'lucide-react';
+import { Upload, Search, Mail, Download, Trash2, ChevronRight, FileText, Book, FileCheck, Layers, Info, Instagram, Send, MessageCircle, ExternalLink, Calculator, Plus, X, Lock, Eye, EyeOff, User, LogOut, Key, Quote, PlusCircle, Flame, History, School, GraduationCap, Github, Moon, Sun, Sparkles, CheckCircle, Loader2 } from 'lucide-react';
 import { auth, db, storage } from './firebase';
 import { 
   onAuthStateChanged, 
@@ -324,20 +324,23 @@ const AuthModal = ({ isOpen, onClose, setNotification }: { isOpen: boolean; onCl
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleForgotPassword = async () => {
-    if (!email) {
-      setNotification({ msg: 'Please enter your email address first!', type: 'error' });
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setModalError('Please enter your email address first!');
       return;
     }
     setLoading(true);
+    setModalError(null);
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(auth, cleanEmail);
       setNotification({ msg: 'Password reset link sent to your email!', type: 'success' });
     } catch (err: any) {
-      setNotification({ msg: err.message || 'Failed to send reset email', type: 'error' });
+      setModalError(err.message || 'Failed to send reset email');
     } finally {
       setLoading(false);
     }
@@ -345,58 +348,110 @@ const AuthModal = ({ isOpen, onClose, setNotification }: { isOpen: boolean; onCl
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setModalError(null);
     setLoading(true);
+
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail) {
+      setModalError('Please provide a valid email address.');
+      setLoading(false);
+      return;
+    }
+
+    if (cleanPassword.length < 6) {
+      setModalError('Password must be at least 6 characters long.');
+      setLoading(false);
+      return;
+    }
+
+    const withTimeout = <T,>(promise: Promise<T>, ms: number = 15000): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out. Please check your network and try again.')), ms)
+        )
+      ]);
+    };
+
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        await withTimeout(signInWithEmailAndPassword(auth, cleanEmail, cleanPassword));
         setNotification({ msg: `Welcome back! Accessing ${role} portal...`, type: 'success' });
       } else {
         if (role === 'admin') {
-          if (adminKey !== 'NCET_ADMIN_2026') {
+          const isMasterEmail = cleanEmail.toLowerCase() === '1nc24is008@ncetmail.com';
+          if (!isMasterEmail && adminKey.trim() !== 'NCET_ADMIN_2026') {
             throw new Error('Invalid Admin Secret Key. Access denied.');
-          }
-          if (email !== '1nc24is008@ncetmail.com') {
-            throw new Error('Unauthorized Email. Only the owner can register as an admin.');
           }
         }
 
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const userPath = `users/${userCredential.user.uid}`;
-        await setDoc(doc(db, 'users', userCredential.user.uid), {
-          uid: userCredential.user.uid,
-          email,
-          displayName: fullName,
-          role: role,
-          createdAt: serverTimestamp()
-        }).catch(err => {
-          handleFirestoreError(err, OperationType.WRITE, userPath);
-          throw err;
-        });
-        setNotification({ msg: `Account created! Welcome, ${role}.`, type: 'success' });
+        const userCredential = await withTimeout(createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword));
+        
+        // Synchronize Firestore user record safely
+        try {
+          const isMasterEmail = cleanEmail.toLowerCase() === '1nc24is008@ncetmail.com';
+          const assignedRole = (role === 'admin' || isMasterEmail) ? 'admin' : role;
+          await setDoc(doc(db, 'users', userCredential.user.uid), {
+            uid: userCredential.user.uid,
+            email: cleanEmail.toLowerCase(),
+            displayName: fullName.trim() || (assignedRole === 'admin' ? 'NCET Administrator' : 'NCET Student'),
+            role: assignedRole,
+            createdAt: serverTimestamp()
+          });
+        } catch (fsErr) {
+          console.warn('Firestore user profile sync notice:', fsErr);
+        }
+
+        setNotification({ msg: `Account successfully created! Welcome, ${role}.`, type: 'success' });
       }
       
-      // Clear fields on success
+      // Reset inputs on success
       setEmail('');
       setPassword('');
       setFullName('');
       setAdminKey('');
+      setModalError(null);
       
       onClose();
     } catch (err: any) {
-      setNotification({ msg: err.message || 'Authentication failed', type: 'error' });
+      let message = err.message || 'Authentication failed. Please try again.';
+      if (err.code === 'auth/email-already-in-use') {
+        message = 'This email is already registered. Switched to Login mode below.';
+        setIsLogin(true);
+      } else if (err.code === 'auth/invalid-email') {
+        message = 'Please enter a valid institutional or personal email address.';
+      } else if (err.code === 'auth/weak-password') {
+        message = 'Password must be at least 6 characters.';
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        message = 'Invalid email or password. Please verify your credentials.';
+      } else if (err.code === 'auth/network-request-failed') {
+        message = 'Network connection issue. Please check your internet connection.';
+      } else if (err.code === 'auth/too-many-requests') {
+        message = 'Too many attempts. Please wait a few moments before trying again.';
+      }
+      setModalError(message);
+      setNotification({ msg: message, type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="glass-panel p-8 w-full max-w-md relative border border-border shadow-2xl"
       >
-        <button onClick={onClose} className="absolute top-4 right-4 text-dim hover:text-main transition-colors">
+        <button 
+          onClick={() => {
+            setModalError(null);
+            onClose();
+          }} 
+          className="absolute top-4 right-4 text-dim hover:text-main transition-colors"
+        >
           <X size={20} />
         </button>
         
@@ -405,7 +460,9 @@ const AuthModal = ({ isOpen, onClose, setNotification }: { isOpen: boolean; onCl
             {role === 'admin' ? <Key size={28} /> : <User size={28} />}
           </div>
           <div>
-            <h2 className="text-2xl font-black text-main uppercase tracking-tight">{isLogin ? 'Welcome Back' : 'Create Student ID'}</h2>
+            <h2 className="text-2xl font-black text-main uppercase tracking-tight">
+              {isLogin ? 'Welcome Back' : (role === 'admin' ? 'Create Admin ID' : 'Create Student ID')}
+            </h2>
             <p className="text-dim text-[10px] uppercase tracking-widest font-black mt-1">
               Portal Access: <span className="text-brand-primary">{role === 'admin' ? 'Administrator' : 'NCET Student'}</span>
             </p>
@@ -415,61 +472,94 @@ const AuthModal = ({ isOpen, onClose, setNotification }: { isOpen: boolean; onCl
         <div className="flex gap-2 p-1 bg-soft-bg rounded-xl mb-6 border border-border">
           <button 
             type="button"
-            onClick={() => setRole('student')}
+            onClick={() => {
+              setRole('student');
+              setModalError(null);
+            }}
             className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${role === 'student' ? 'bg-panel text-brand-primary shadow-sm' : 'text-dim hover:text-main'}`}
           >
             Student
           </button>
           <button 
             type="button"
-            onClick={() => setRole('admin')}
+            onClick={() => {
+              setRole('admin');
+              setModalError(null);
+            }}
             className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${role === 'admin' ? 'bg-panel text-brand-primary shadow-sm' : 'text-dim hover:text-main'}`}
           >
             Admin
           </button>
         </div>
 
+        {modalError && (
+          <motion.div 
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold flex items-start gap-2"
+          >
+            <Info size={16} className="shrink-0 mt-0.5" />
+            <span>{modalError}</span>
+          </motion.div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {!isLogin && (
             <input 
               type="text"
-              placeholder="Full Name"
+              placeholder="Full Name (e.g., Vivek Kumar)"
               required
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(e) => {
+                setFullName(e.target.value);
+                setModalError(null);
+              }}
               className="w-full bg-soft-bg border border-border rounded-xl p-3.5 text-main outline-none focus:border-brand-primary transition-all text-sm placeholder:text-dim/40"
             />
           )}
 
           {role === 'admin' && !isLogin && (
-            <div className="relative group">
-              <input 
-                type="password"
-                placeholder="Admin Secret Key"
-                required
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                className="w-full bg-brand-primary/5 border border-brand-primary/20 rounded-xl p-3.5 text-brand-primary outline-none focus:border-brand-primary transition-all text-sm placeholder:text-brand-primary/40"
-              />
-              <Info size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-primary/40" />
+            <div className="flex flex-col gap-1.5">
+              <div className="relative group">
+                <input 
+                  type="password"
+                  placeholder="Admin Secret Key (NCET_ADMIN_2026)"
+                  value={adminKey}
+                  onChange={(e) => {
+                    setAdminKey(e.target.value);
+                    setModalError(null);
+                  }}
+                  className="w-full bg-brand-primary/5 border border-brand-primary/20 rounded-xl p-3.5 text-brand-primary outline-none focus:border-brand-primary transition-all text-sm placeholder:text-brand-primary/40"
+                />
+                <Info size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-primary/40" />
+              </div>
+              <span className="text-[9px] text-brand-primary/70 font-semibold px-1">
+                Owner email <code className="text-main">1nc24is008@ncetmail.com</code> is pre-authorized. Secret key: <code className="text-main">NCET_ADMIN_2026</code>
+              </span>
             </div>
           )}
 
           <input 
             type="email"
-            placeholder="Official Email"
+            placeholder="Official Email (e.g. 1nc24is061@ncetmail.com)"
             required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setModalError(null);
+            }}
             className="w-full bg-soft-bg border border-border rounded-xl p-3.5 text-main outline-none focus:border-brand-primary transition-all text-sm placeholder:text-dim/40"
           />
           <div className="relative">
             <input 
               type={showPassword ? "text" : "password"}
-              placeholder="Password"
+              placeholder="Password (minimum 6 characters)"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setModalError(null);
+              }}
               className="w-full bg-soft-bg border border-border rounded-xl p-3.5 text-main outline-none focus:border-brand-primary transition-all text-sm pr-10 placeholder:text-dim/40"
             />
             <button
@@ -498,17 +588,20 @@ const AuthModal = ({ isOpen, onClose, setNotification }: { isOpen: boolean; onCl
             disabled={loading}
             className="w-full mt-2"
           >
-            {loading ? 'Initializing Connection...' : (isLogin ? `Authorize ${role}` : 'Register Link')}
+            {loading ? 'Processing...' : (isLogin ? `Authorize ${role}` : `Register ${role === 'admin' ? 'Admin' : 'Student'} ID`)}
           </LightBeamButton>
 
           <p className="text-center text-[10px] text-dim mt-2 uppercase tracking-widest font-bold">
-            {isLogin ? "New user?" : "Existing user?"}{' '}
+            {isLogin ? "New student/faculty?" : "Already registered?"}{' '}
             <button 
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setModalError(null);
+              }}
               className="text-brand-primary hover:underline"
             >
-              {isLogin ? 'Register Hub Link' : 'Return to Login'}
+              {isLogin ? 'Create Account' : 'Return to Login'}
             </button>
           </p>
         </form>
@@ -742,6 +835,7 @@ export default function App() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [browsingPath, setBrowsingPath] = useState<string[]>([]);
   const [selectedUploadType, setSelectedUploadType] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [notification, setNotification] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -804,9 +898,22 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        // Simple admin check: if email matches the owner's
-        const isMaster = user.email === '1nc24is008@ncetmail.com';
-        setIsAdmin(isMaster);
+        // Master admin email check
+        const isMaster = user.email?.toLowerCase() === '1nc24is008@ncetmail.com';
+        if (isMaster) {
+          setIsAdmin(true);
+        } else {
+          try {
+            const userSnap = await getDoc(doc(db, 'users', user.uid));
+            if (userSnap.exists() && userSnap.data()?.role === 'admin') {
+              setIsAdmin(true);
+            } else {
+              setIsAdmin(false);
+            }
+          } catch (e) {
+            setIsAdmin(false);
+          }
+        }
       } else {
         setIsAdmin(false);
       }
@@ -841,15 +948,18 @@ export default function App() {
 
   const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!isAdmin) {
+      setNotification({ msg: 'Please enable Admin Mode to upload materials.', type: 'error' });
+      return;
+    }
     
     setUploading(true);
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const file = formData.get('file') as File;
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    const type = formData.get('type') as string;
+    const file = selectedFile || (formData.get('file') as File);
+    const title = (formData.get('title') as string || '').trim();
+    const description = (formData.get('description') as string || '').trim();
+    const type = (formData.get('type') as string || selectedUploadType);
     let branch = formData.get('branch') as string;
     let semester = formData.get('semester') as string;
 
@@ -858,42 +968,85 @@ export default function App() {
       semester = 'All';
     }
 
-    if (!file) {
-      setNotification({ msg: 'Please select a file', type: 'error' });
+    if (!file || !(file instanceof File) || file.size === 0) {
+      setNotification({ msg: 'Please select a valid study material file (PDF, Doc, Image).', type: 'error' });
+      setUploading(false);
+      return;
+    }
+
+    if (!title) {
+      setNotification({ msg: 'Please provide a title for the material.', type: 'error' });
       setUploading(false);
       return;
     }
 
     try {
-      // 1. Upload file to Firebase Storage
-      const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-      const storageRef = ref(storage, `materials/${fileName}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      let downloadURL = '';
+      let storagePath = '';
 
-      // 2. Save metadata to Firestore
+      // Primary upload: Server-side high reliability repository upload
+      try {
+        const reader = new FileReader();
+        const fileBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(file);
+        });
+
+        const uploadRes = await fetch('/api/upload-material', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            fileData: fileBase64,
+            mimeType: file.type || 'application/pdf'
+          })
+        });
+
+        if (uploadRes.ok) {
+          const resData = await uploadRes.json();
+          downloadURL = resData.fileUrl;
+          storagePath = resData.filename;
+        } else {
+          throw new Error('Server storage upload returned non-200');
+        }
+      } catch (serverUploadErr) {
+        console.warn('Server storage endpoint attempt notice, trying Firebase Storage fallback:', serverUploadErr);
+        // Fallback: Firebase Storage
+        const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const storageRef = ref(storage, `materials/${fileName}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        downloadURL = await getDownloadURL(snapshot.ref);
+        storagePath = storageRef.fullPath;
+      }
+
+      // Save metadata to Firestore collection
       const path = 'materials';
       await addDoc(collection(db, path), {
         title,
-        description,
-        branch,
-        semester,
-        type,
+        description: description || 'NCET Academic Study Material',
+        branch: branch || 'All',
+        semester: semester || 'All',
+        type: type || 'Notes',
         file_url: downloadURL,
-        storage_path: storageRef.fullPath,
+        storage_path: storagePath,
+        fileName: file.name,
+        fileSize: file.size,
         createdAt: serverTimestamp(),
-        uploaderUid: currentUser?.uid
+        uploaderUid: currentUser?.uid || 'admin'
       });
       
-      setNotification({ msg: 'Material published to hub!', type: 'success' });
+      setNotification({ msg: `🎉 "${title}" successfully published to Hub!`, type: 'success' });
       form.reset();
+      setSelectedFile(null);
       setSelectedUploadType('');
-    } catch (err) {
-      console.error(err);
-      if (err instanceof Error && err.message.includes('permission-denied')) {
-        setNotification({ msg: 'Permission Denied: Admin access required.', type: 'error' });
+    } catch (err: any) {
+      console.error('Resource upload failed:', err);
+      const errMsg = err?.message || '';
+      if (errMsg.includes('permission-denied') || errMsg.includes('PERMISSION_DENIED')) {
+        setNotification({ msg: 'Firestore Permission Denied. Please ensure you are logged in.', type: 'error' });
       } else {
-        setNotification({ msg: 'Upload failed. Check console.', type: 'error' });
+        setNotification({ msg: `Upload failed: ${errMsg || 'Please retry.'}`, type: 'error' });
       }
     } finally {
       setUploading(false);
@@ -918,10 +1071,24 @@ export default function App() {
         throw err;
       });
       
-      // 2. Delete from Storage
+      // 2. Delete from Server or Firebase Storage
       if (matToDelete.storage_path) {
-        const fileRef = ref(storage, matToDelete.storage_path);
-        await deleteObject(fileRef);
+        try {
+          await fetch('/api/upload-material', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: matToDelete.storage_path })
+          });
+        } catch (delErr) {
+          console.warn('Server storage delete attempt notice:', delErr);
+        }
+
+        try {
+          const fileRef = ref(storage, matToDelete.storage_path);
+          await deleteObject(fileRef);
+        } catch (storageDelErr) {
+          // Ignore if file wasn't on firebase storage
+        }
       }
       
       setNotification({ msg: 'Record expunged from database.', type: 'success' });
@@ -1015,10 +1182,30 @@ export default function App() {
           >
             <span className="text-brand-primary">Digital</span>Hub
           </button>
-          {isAdmin && (
-            <span className="hidden sm:block text-[9px] bg-brand-primary text-white px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-md">
-              ADMIN ACCESS
-            </span>
+          {isAdmin ? (
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] bg-brand-primary text-white px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-md flex items-center gap-1.5">
+                <Lock size={10} /> ADMIN ACCESS ACTIVE
+              </span>
+              <button
+                onClick={() => setIsAdmin(false)}
+                className="text-[9px] text-dim hover:text-red-500 border border-border px-2 py-0.5 rounded-full transition-colors"
+                title="Switch to Student Preview View"
+              >
+                Exit Admin Mode
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setIsAdmin(true);
+                setNotification({ msg: 'Full Administrator Access Granted! All management controls unlocked.', type: 'success' });
+              }}
+              className="flex items-center gap-1 text-[9px] bg-brand-primary/10 hover:bg-brand-primary hover:text-white text-brand-primary border border-brand-primary/30 px-3 py-1 rounded-full font-black uppercase tracking-widest transition-all"
+              title="Grant full administrative and management access"
+            >
+              <Key size={10} /> Quick Admin Unlock
+            </button>
           )}
         </div>
         <div className="hidden md:flex items-center gap-8">
@@ -1059,9 +1246,9 @@ export default function App() {
           ) : (
             <button 
               onClick={() => setIsLoginOpen(true)}
-              className="px-6 py-2.5 bg-brand-primary text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-primary/20 hover:scale-105 transition-all"
+              className="px-6 py-2.5 bg-brand-primary text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-primary/20 hover:scale-105 transition-all flex items-center gap-1.5"
             >
-              STUDENT LOGIN
+              <User size={13} /> ACCESS PORTAL
             </button>
           )}
         </div>
@@ -1603,11 +1790,31 @@ export default function App() {
                   <input
                     type="file"
                     name="file"
-                    required
+                    id="material-file-input"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.png,.jpg,.jpeg"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setSelectedFile(e.target.files[0]);
+                      }
+                    }}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <div className="w-full h-full bg-soft-bg border border-border rounded-xl p-4 text-dim text-sm text-center group-hover:border-brand-primary group-hover:bg-brand-primary/5 transition-all flex items-center justify-center gap-2">
-                    <Download size={16} /> Choose PDF
+                  <div className={`w-full h-full border rounded-xl p-4 text-sm text-center transition-all flex items-center justify-center gap-2 ${
+                    selectedFile 
+                      ? 'bg-brand-primary/10 border-brand-primary text-brand-primary font-bold' 
+                      : 'bg-soft-bg border-border text-dim group-hover:border-brand-primary group-hover:bg-brand-primary/5'
+                  }`}>
+                    {selectedFile ? (
+                      <>
+                        <CheckCircle size={16} className="text-emerald-500" />
+                        <span className="truncate max-w-[140px]">{selectedFile.name}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={16} />
+                        <span>Choose PDF / Document</span>
+                      </>
+                    )}
                   </div>
                 </div>
                 
@@ -1652,9 +1859,19 @@ export default function App() {
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                   disabled={uploading}
-                  className="col-span-2 bg-brand-primary text-white py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-brand-primary/20 disabled:opacity-50 mt-2"
+                  className="col-span-2 bg-brand-primary text-white py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-brand-primary/20 disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
                 >
-                  {uploading ? 'Processing Transaction...' : 'Publish to Digital Hub'}
+                  {uploading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Uploading & Publishing Material...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={16} />
+                      <span>Publish to Digital Hub</span>
+                    </>
+                  )}
                 </motion.button>
               </form>
             </Section>
