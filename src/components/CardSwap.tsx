@@ -2,6 +2,7 @@ import React, {
   Children,
   cloneElement,
   forwardRef,
+  useImperativeHandle,
   isValidElement,
   ReactElement,
   ReactNode,
@@ -16,6 +17,10 @@ import { twMerge } from 'tailwind-merge';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+export interface CardSwapRef {
+  swap: () => void;
 }
 
 export interface CardSwapProps {
@@ -78,7 +83,7 @@ const placeNow = (el: HTMLElement, slot: Slot, skew: number) =>
     force3D: true
   });
 
-export const CardSwap: React.FC<CardSwapProps> = ({
+export const CardSwap = forwardRef<CardSwapRef, CardSwapProps>(({
   width = 500,
   height = 400,
   cardDistance = 60,
@@ -89,7 +94,7 @@ export const CardSwap: React.FC<CardSwapProps> = ({
   skewAmount = 6,
   easing = 'elastic',
   children
-}) => {
+}, ref) => {
   const config =
     easing === 'elastic'
       ? {
@@ -116,6 +121,12 @@ export const CardSwap: React.FC<CardSwapProps> = ({
   const intervalRef = useRef<number>(0);
   const container = useRef<HTMLDivElement>(null);
   const swapRef = useRef<() => void>(() => {});
+
+  useImperativeHandle(ref, () => ({
+    swap: () => {
+      swapRef.current();
+    }
+  }));
 
   useEffect(() => {
     const total = refs.length;
@@ -244,6 +255,8 @@ export const CardSwap: React.FC<CardSwapProps> = ({
       </div>
     </div>
   );
-};
+});
+
+CardSwap.displayName = 'CardSwap';
 
 export default CardSwap;

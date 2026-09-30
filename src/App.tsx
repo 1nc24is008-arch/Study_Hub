@@ -32,7 +32,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { AIChatBot } from './components/AIChatBot';
 import { ParallaxStars } from './components/ParallaxStars';
 import { LightBeamButton } from './components/LightBeamButton';
-import { CardSwap, Card } from './components/CardSwap';
+import { CardSwap, Card, CardSwapRef } from './components/CardSwap';
 
 // --- Types ---
 enum OperationType {
@@ -103,6 +103,100 @@ interface Material {
 const MATERIAL_TYPES = ['Notes', 'Syllabus', 'Model Paper', 'Lab Manual', 'Exam Time Table', 'Academic Calendar', 'Other'];
 const BRANCHES = ['CSE', 'AI/ML', 'DS', 'ISE', 'ECE', 'MECH', 'CIVIL', 'First Year'];
 const SEMESTERS = ['1', '2', '3', '4', '5', '6', '7', '8'];
+
+interface BranchSlideData {
+  branch: string;
+  fullName: string;
+  tag: string;
+  curriculum: string;
+  desc: string;
+  subjects: string[];
+  img: string;
+  accent: string;
+}
+
+const BRANCH_SLIDES: BranchSlideData[] = [
+  {
+    branch: 'CSE',
+    fullName: 'Computer Science & Engineering',
+    tag: 'CSE • SYSTEMS & CLOUD',
+    curriculum: 'VTU 2022 Scheme • Sem 1 - 8',
+    desc: 'Core programming modules, Data Structures, Operating Systems, Computer Networks, DBMS, and Full-Stack Cloud lab environments.',
+    subjects: ['DSA', 'DBMS', 'OS', 'Networks', 'Cloud Computing'],
+    img: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1000&auto=format&fit=crop',
+    accent: 'border-cyan-500/40 text-cyan-400 bg-cyan-500/10'
+  },
+  {
+    branch: 'ISE',
+    fullName: 'Information Science & Engineering',
+    tag: 'ISE • DATA & CYBER DEFENSE',
+    curriculum: 'VTU 2022 Scheme • Sem 1 - 8',
+    desc: 'Specialized curriculum in Cyber Forensics, Cryptography, Network Protocols, Software Engineering, and Enterprise Distributed Databases.',
+    subjects: ['Cyber Security', 'Software Engg', 'Web Tech', 'Big Data', 'Cryptology'],
+    img: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=1000&auto=format&fit=crop',
+    accent: 'border-indigo-500/40 text-indigo-400 bg-indigo-500/10'
+  },
+  {
+    branch: 'AI/ML',
+    fullName: 'Artificial Intelligence & ML',
+    tag: 'AI/ML • NEURAL ARCHITECTURE',
+    curriculum: 'VTU 2022 Scheme • Sem 1 - 8',
+    desc: 'Deep Learning models, Neural Networks, Computer Vision, Natural Language Processing pipelines, and Python AI notebooks.',
+    subjects: ['Deep Learning', 'Computer Vision', 'NLP', 'Neural Nets', 'Python AI'],
+    img: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?q=80&w=1000&auto=format&fit=crop',
+    accent: 'border-purple-500/40 text-purple-400 bg-purple-500/10'
+  },
+  {
+    branch: 'CIVIL',
+    fullName: 'Civil Engineering',
+    tag: 'CIVIL • STRUCTURES & CAD',
+    curriculum: 'VTU 2022 Scheme • Sem 1 - 8',
+    desc: 'Structural Analysis calculations, Concrete Technology testing manuals, Geotechnical calculations, Surveying, and AutoCAD building blueprints.',
+    subjects: ['Structural Design', 'Concrete Tech', 'Surveying', 'Geotech', 'CAD Drafts'],
+    img: 'https://images.unsplash.com/photo-1541888946425-d0fbb186c5f7?q=80&w=1000&auto=format&fit=crop',
+    accent: 'border-amber-500/40 text-amber-400 bg-amber-500/10'
+  },
+  {
+    branch: 'ECE',
+    fullName: 'Electronics & Communication Engg',
+    tag: 'ECE • VLSI, EMBEDDED & SIGNALS',
+    curriculum: 'VTU 2022 Scheme • Sem 1 - 8',
+    desc: 'Silicon hardware blueprints, VLSI Circuit Design, Digital Signal Processing, ARM Microcontrollers, and Wireless Communications.',
+    subjects: ['VLSI Design', 'DSP', 'Embedded IoT', 'Microcontrollers', 'Signals'],
+    img: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1000&auto=format&fit=crop',
+    accent: 'border-rose-500/40 text-rose-400 bg-rose-500/10'
+  },
+  {
+    branch: 'MECH',
+    fullName: 'Mechanical Engineering',
+    tag: 'MECH • THERMAL, CAD & ROBOTICS',
+    curriculum: 'VTU 2022 Scheme • Sem 1 - 8',
+    desc: 'Thermodynamics fundamentals, Finite Element Analysis (FEA), Fluid Dynamics, Machine Design, and CAD/CAM manufacturing labs.',
+    subjects: ['Thermodynamics', 'Fluid Mech', 'CAD/CAM', 'Machine Design', 'Robotics'],
+    img: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=1000&auto=format&fit=crop',
+    accent: 'border-orange-500/40 text-orange-400 bg-orange-500/10'
+  },
+  {
+    branch: 'DS',
+    fullName: 'Data Science Engineering',
+    tag: 'DS • BIG DATA & STATISTICAL AI',
+    curriculum: 'VTU 2022 Scheme • Sem 1 - 8',
+    desc: 'Statistical Inference, Big Data Mining with Apache Spark, Predictive Machine Learning, BI Dashboards, and Data Visualization toolkits.',
+    subjects: ['Big Data Analytics', 'Statistical ML', 'Apache Spark', 'Data Viz', 'BI Dashboards'],
+    img: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1000&auto=format&fit=crop',
+    accent: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
+  },
+  {
+    branch: 'First Year',
+    fullName: 'First Year Engineering (P & C Cycles)',
+    tag: '1ST YR • FOUNDATIONAL CYCLES',
+    curriculum: 'VTU Common Scheme • Sem 1 & 2',
+    desc: 'Core foundational modules: Engineering Mathematics I & II, Engineering Physics, Chemistry Cycle, and C/Python problem solving laboratories.',
+    subjects: ['Engg Mathematics', 'Physics Cycle', 'Chemistry Cycle', 'Python for Engg', 'Basic Electrical'],
+    img: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=1000&auto=format&fit=crop',
+    accent: 'border-teal-500/40 text-teal-400 bg-teal-500/10'
+  }
+];
 const QUOTES = [
   { text: "Engineering is the art of making things work.", author: "General Wisdom" },
   { text: "Science is about knowing; engineering is about doing.", author: "Henry Petroski" },
@@ -853,6 +947,23 @@ export default function App() {
   }, [theme]);
   const [activeDiscover, setActiveDiscover] = useState<string | null>(null);
   const [deletingMaterial, setDeletingMaterial] = useState<Material | null>(null);
+  const cardSwapRef = useRef<CardSwapRef>(null);
+  const [isMobileScreen, setIsMobileScreen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobileScreen(window.innerWidth < 640);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleBranchSlideClick = (branchCode: string) => {
+    setBrowsingPath([branchCode]);
+    const el = document.getElementById('branches');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   const getPastelStyles = (type: string) => {
     switch (type) {
@@ -1354,91 +1465,156 @@ export default function App() {
 
         <div className="h-4" id="hub-content" />
 
-        {/* Featured Showcase Section */}
-        <div className="py-20 flex flex-col lg:flex-row items-center gap-16 overflow-visible">
+        {/* Featured Showcase Section - Engineering Branches Slides */}
+        <div className="py-16 flex flex-col lg:flex-row items-center gap-12 overflow-visible">
           <div className="flex-1 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-primary/10 border border-brand-primary/20">
                <Sparkles size={14} className="text-brand-primary" />
                <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest">Featured NCET Resource</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-main leading-none">
-              Streamlining Your <span className="text-brand-primary">Academics</span>
+            <h2 className="text-4xl md:text-5xl font-bold text-main leading-tight">
+              Explore Engineering <span className="text-brand-primary">Branches</span>
             </h2>
             <p className="text-dim text-lg leading-relaxed max-w-xl">
-              Dive into our specialized toolkits for NCET engineering students. We focus on VTU syllabus precision, ensuring you have the exact resources needed for every internal and semester exam.
+              Specialized branch repositories for NCET & VTU students. Browse notes, syllabus blueprints, previous question banks, and lab manuals organized department-by-department for all 8 semesters.
             </p>
-            <div className="flex gap-4 pt-4">
+
+            {/* Quick Branch Nav Pills */}
+            <div className="pt-2">
+              <div className="text-[10px] font-black text-dim uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <Book size={12} className="text-brand-primary" />
+                <span>Jump straight to your department:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {BRANCHES.map(b => (
+                  <button
+                    key={b}
+                    onClick={() => handleBranchSlideClick(b)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                      browsingPath[0] === b 
+                        ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/30 scale-105' 
+                        : 'bg-soft-bg hover:bg-panel border border-border text-main hover:border-brand-primary/40'
+                    }`}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-6 pt-2">
               <div className="flex flex-col gap-1">
-                <span className="text-2xl font-black text-main">2022+</span>
-                <span className="text-[10px] text-dim font-bold uppercase tracking-widest">Scheme Ready</span>
+                <span className="text-2xl font-black text-main">8</span>
+                <span className="text-[10px] text-dim font-bold uppercase tracking-widest">Branches</span>
               </div>
               <div className="w-[1px] h-12 bg-border"></div>
               <div className="flex flex-col gap-1">
-                <span className="text-2xl font-black text-main">100%</span>
-                <span className="text-[10px] text-dim font-bold uppercase tracking-widest">Syllabus Sync</span>
+                <span className="text-2xl font-black text-main">Sem 1 - 8</span>
+                <span className="text-[10px] text-dim font-bold uppercase tracking-widest">All Semesters</span>
+              </div>
+              <div className="w-[1px] h-12 bg-border"></div>
+              <div className="flex flex-col gap-1">
+                <span className="text-2xl font-black text-main">2022+</span>
+                <span className="text-[10px] text-dim font-bold uppercase tracking-widest">VTU Scheme</span>
               </div>
             </div>
           </div>
 
-          <div className="relative w-full max-w-[500px] h-[450px] flex items-center justify-center">
-            <CardSwap
-              width={420}
-              height={320}
-              cardDistance={35}
-              verticalDistance={35}
-              delay={5000}
-              pauseOnHover={true}
-              skewAmount={4}
-            >
-              {[
-                {
-                  title: "NCET Archive Hub",
-                  desc: "Comprehensive database of VTU previous year question papers and model answers.",
-                  img: "https://images.unsplash.com/photo-1544377193-33dcf4d68fb5?q=80&w=800&auto=format&fit=crop",
-                  tag: "VTU-ARCHIVE"
-                },
-                {
-                  title: "Laboratory Blueprint",
-                  desc: "Digital laboratory manuals with verified code outputs for CSE, ISE, and ECE branches.",
-                  img: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=800&auto=format&fit=crop",
-                  tag: "LAB-READY"
-                },
-                {
-                  title: "Placement Strategy",
-                  desc: "Technical interview roadmaps, aptitude modules, and company-specific coding grids.",
-                  img: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=800&auto=format&fit=crop",
-                  tag: "CAREER-PRO"
-                },
-                {
-                  title: "Premium Modules",
-                  desc: "Condensed handwritten notes and faculty-vetted summaries for core engineering subjects.",
-                  img: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=800&auto=format&fit=crop",
-                  tag: "STUDY-SYB"
-                }
-              ].map((item, idx) => (
-                <Card key={idx} className="p-0 overflow-hidden group/card shadow-2xl shadow-black/20">
-                  <div className="relative h-full w-full flex flex-col">
-                    <div className="flex-1 overflow-hidden relative">
-                      <img 
-                        src={item.img} 
-                        alt={item.title} 
-                        className="w-full h-full object-cover transition-transform duration-1000 group-hover/card:scale-110"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                      <div className="absolute top-6 left-6 px-3 py-1 rounded-lg bg-brand-primary/20 backdrop-blur-md border border-brand-primary/30">
-                        <span className="text-[10px] font-black text-white uppercase tracking-widest">{item.tag}</span>
+          <div className="relative w-full max-w-[540px] flex flex-col items-center justify-center">
+            <div className="relative w-full h-[450px] flex items-center justify-center overflow-visible">
+              <CardSwap
+                ref={cardSwapRef}
+                width={isMobileScreen ? 320 : 430}
+                height={isMobileScreen ? 320 : 350}
+                cardDistance={isMobileScreen ? 14 : 20}
+                verticalDistance={isMobileScreen ? 14 : 18}
+                delay={4500}
+                pauseOnHover={true}
+                skewAmount={3}
+              >
+                {BRANCH_SLIDES.map((slide, idx) => (
+                  <Card key={idx} className="p-0 overflow-hidden group/card shadow-2xl shadow-black/30 border border-white/10 select-none">
+                    <div className="relative h-full w-full flex flex-col">
+                      <div className="flex-1 overflow-hidden relative">
+                        <img 
+                          src={slide.img} 
+                          alt={slide.fullName} 
+                          className="w-full h-full object-cover transition-transform duration-1000 group-hover/card:scale-105"
+                        />
+                        {/* High contrast dark gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30" />
+                        
+                        {/* Header Badges */}
+                        <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+                          <div className="px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md border border-white/20">
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest">{slide.tag}</span>
+                          </div>
+                          <div className="px-2.5 py-1 rounded-lg bg-brand-primary text-white font-black text-xs tracking-wider shadow-lg shadow-brand-primary/40">
+                            {slide.branch}
+                          </div>
+                        </div>
+
+                        {/* Bottom Information */}
+                        <div className="absolute bottom-0 left-0 right-0 p-5 text-white flex flex-col justify-end bg-gradient-to-t from-black/95 via-black/85 to-transparent z-10">
+                          <span className="text-[10px] font-bold text-cyber-cyan uppercase tracking-wider mb-1">
+                            {slide.curriculum}
+                          </span>
+                          <h3 className="text-xl md:text-2xl font-black mb-1.5 tracking-tight text-white line-clamp-1">
+                            {slide.fullName}
+                          </h3>
+                          <p className="text-xs text-white/80 leading-relaxed font-normal line-clamp-2 mb-3">
+                            {slide.desc}
+                          </p>
+
+                          {/* Subject Micro Pills */}
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {slide.subjects.map((sub, sIdx) => (
+                              <span
+                                key={sIdx}
+                                className="text-[9px] px-2 py-0.5 rounded-full bg-white/10 text-white/90 border border-white/15 backdrop-blur-sm font-semibold"
+                              >
+                                {sub}
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* Direct Navigation Button */}
+                          <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleBranchSlideClick(slide.branch);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary text-white text-xs font-black uppercase tracking-wider hover:brightness-110 shadow-lg shadow-brand-primary/30 active:scale-95 transition-all"
+                            >
+                              Explore {slide.branch} Modules <ChevronRight size={13} />
+                            </button>
+                            <span className="text-[10px] text-white/50 font-bold uppercase tracking-widest hidden sm:inline">
+                              Click slide to swap ➔
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
-                      <h3 className="text-2xl font-black mb-2 tracking-tight">{item.title}</h3>
-                      <p className="text-xs text-white/70 leading-relaxed font-medium">
-                        {item.desc}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </CardSwap>
+                  </Card>
+                ))}
+              </CardSwap>
+            </div>
+
+            {/* Slide Navigation Controls */}
+            <div className="flex items-center justify-between w-full max-w-[430px] mt-4 px-2">
+              <span className="text-[11px] text-dim font-bold flex items-center gap-1.5">
+                <Sparkles size={12} className="text-brand-primary" />
+                8 Branches • Auto-swapping
+              </span>
+              <button
+                onClick={() => cardSwapRef.current?.swap()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-soft-bg hover:bg-panel border border-border text-main text-xs font-bold transition-all shadow-sm active:scale-95"
+              >
+                <span>Next Branch</span>
+                <ChevronRight size={14} className="text-brand-primary" />
+              </button>
+            </div>
           </div>
         </div>
 
