@@ -1,21 +1,5 @@
 # NCET Digital Study Hub & Campus ERP Portal
 
-A full-stack academic resource hub and college ERP management portal for engineering students, faculty, parents, and administrators.
-
----
-
-## 🔐 Demo Credentials for All Four Roles
-
-You can test any role instantly using either the **1-Click Instant Demo Login** buttons on the login screen or by entering the credentials below:
-
-| Role | Email | Password | Sample User Details |
-| :--- | :--- | :--- | :--- |
-| **Student** | `student@ncet.edu` | `student123` | **Aarav Sharma** (USN: `1NC22CS045`), 6th Sem B.E. Computer Science |
-| **Faculty** | `faculty@ncet.edu` | `faculty123` | **Dr. Rajesh Sharma**, Professor & HOD, Computer Science & Engineering |
-| **Parent** | `parent@ncet.edu` | `parent123` | **Mr. Ramesh Sharma**, Guardian of Aarav Sharma |
-| **Admin** | `admin@ncet.edu` | `admin123` | **Registrar Admin Office**, Central Academic Controller |
-
----
 
 ## 🌟 Modules & Features Overview
 
