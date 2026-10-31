@@ -33,6 +33,9 @@ import { AIChatBot } from './components/AIChatBot';
 import { ParallaxStars } from './components/ParallaxStars';
 import { LightBeamButton } from './components/LightBeamButton';
 import { CardSwap, Card, CardSwapRef } from './components/CardSwap';
+import { ERPPortal } from './components/erp/ERPPortal';
+import { CampusShowcaseSection } from './components/CampusShowcaseSection';
+import { FloatingMagnificationDock } from './components/FloatingMagnificationDock';
 
 // --- Types ---
 enum OperationType {
@@ -932,6 +935,7 @@ export default function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [notification, setNotification] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [showERPPortal, setShowERPPortal] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
   });
@@ -1234,6 +1238,10 @@ export default function App() {
     );
   });
 
+  if (showERPPortal) {
+    return <ERPPortal onBackToHub={() => setShowERPPortal(false)} />;
+  }
+
   return (
     <div className="min-h-screen font-sans selection:bg-brand-primary selection:text-white flex flex-col">
       <CursorTrail />
@@ -1293,6 +1301,13 @@ export default function App() {
           >
             <span className="text-brand-primary">Digital</span>Hub
           </button>
+          <button
+            onClick={() => setShowERPPortal(true)}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-primary/10 hover:bg-brand-primary hover:text-white text-brand-primary border border-brand-primary/30 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm"
+            title="Open Campus ERP (Attendance, Results, Fees, Grievance Portal)"
+          >
+            <GraduationCap size={12} /> Campus ERP
+          </button>
           {isAdmin ? (
             <div className="flex items-center gap-2">
               <span className="text-[9px] bg-brand-primary text-white px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-md flex items-center gap-1.5">
@@ -1319,49 +1334,67 @@ export default function App() {
             </button>
           )}
         </div>
-        <div className="hidden md:flex items-center gap-8">
-          {['Home', 'Search', 'Calculator', 'Contact'].map((item) => (
-            <button
-              key={item}
-              onClick={() => {
-                if (item === 'Calculator') {
-                  setShowCalculator(true);
-                  setTimeout(() => {
-                    const el = document.getElementById('calculator');
-                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }, 100);
-                } else {
-                  document.getElementById(item.toLowerCase())?.scrollIntoView({ behavior: 'smooth' });
-                }
-              }}
-              className="text-main text-sm font-black hover:text-brand-primary transition-all uppercase tracking-wider"
-            >
-              {item}
-            </button>
-          ))}
-          {currentUser ? (
-            <div className="flex items-center gap-4 border-l border-border pl-8">
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] text-main font-bold">{currentUser.displayName || 'Hub User'}</span>
-                <span className={`text-[8px] font-black uppercase tracking-tighter ${isAdmin ? 'text-brand-primary' : 'text-dim'}`}>
-                  {isAdmin ? 'Principal/Admin' : 'Verified Student'}
-                </span>
-              </div>
-              <button 
-                onClick={() => signOut(auth)}
-                className="flex items-center gap-2 text-red-500 hover:bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest"
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-8">
+            {['Home', 'Search', 'Showcase', 'Calculator', 'Campus ERP', 'Contact'].map((item) => (
+              <button
+                key={item}
+                onClick={() => {
+                  if (item === 'Campus ERP') {
+                    setShowERPPortal(true);
+                  } else if (item === 'Showcase') {
+                    document.getElementById('campus-gallery')?.scrollIntoView({ behavior: 'smooth' });
+                  } else if (item === 'Calculator') {
+                    setShowCalculator(true);
+                    setTimeout(() => {
+                      const el = document.getElementById('calculator');
+                      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                  } else {
+                    document.getElementById(item.toLowerCase())?.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className={`text-sm font-black transition-all uppercase tracking-wider ${
+                  item === 'Campus ERP'
+                    ? 'text-brand-primary hover:brightness-110 flex items-center gap-1'
+                    : 'text-main hover:text-brand-primary'
+                }`}
               >
-                <LogOut size={12} />
+                {item === 'Campus ERP' && <GraduationCap size={14} />}
+                {item}
               </button>
-            </div>
-          ) : (
-            <button 
-              onClick={() => setIsLoginOpen(true)}
-              className="px-6 py-2.5 bg-brand-primary text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-primary/20 hover:scale-105 transition-all flex items-center gap-1.5"
-            >
-              <User size={13} /> ACCESS PORTAL
-            </button>
-          )}
+            ))}
+            {currentUser ? (
+              <div className="flex items-center gap-4 border-l border-border pl-8">
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] text-main font-bold">{currentUser.displayName || 'Hub User'}</span>
+                  <span className={`text-[8px] font-black uppercase tracking-tighter ${isAdmin ? 'text-brand-primary' : 'text-dim'}`}>
+                    {isAdmin ? 'Principal/Admin' : 'Verified Student'}
+                  </span>
+                </div>
+                <button 
+                  onClick={() => signOut(auth)}
+                  className="flex items-center gap-2 text-red-500 hover:bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest"
+                >
+                  <LogOut size={12} />
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => setIsLoginOpen(true)}
+                className="px-6 py-2.5 bg-brand-primary text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-primary/20 hover:scale-105 transition-all flex items-center gap-1.5"
+              >
+                <User size={13} /> ACCESS PORTAL
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setShowERPPortal(true)}
+            className="md:hidden p-2 rounded-xl bg-brand-primary/10 text-brand-primary border border-brand-primary/30 flex items-center gap-1 text-xs font-bold"
+            title="Campus ERP"
+          >
+            <GraduationCap size={16} />
+          </button>
         </div>
       </nav>
 
@@ -1453,6 +1486,16 @@ export default function App() {
                     </LightBeamButton>
                   </div>
                 </motion.div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-bold text-dim uppercase tracking-wider">Academic Portal:</span>
+                  <button
+                    onClick={() => setShowERPPortal(true)}
+                    className="px-3 py-1.5 rounded-xl bg-brand-primary/10 hover:bg-brand-primary hover:text-white text-brand-primary border border-brand-primary/20 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                  >
+                    <GraduationCap size={13} /> Open Campus ERP (Attendance, Fees, Results)
+                  </button>
+                </div>
               </section>
 
               {/* AI Assistant */}
@@ -1617,6 +1660,9 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {/* Cinematic Masonry Gallery - Campus & Research Showcase */}
+        <CampusShowcaseSection onExploreBranch={handleBranchSlideClick} />
 
         {/* Lower Grid: Main Content (Left) + Sidebars (Right) */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-8 items-start">
@@ -2458,6 +2504,50 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Floating macOS Magnification Dock */}
+      <FloatingMagnificationDock
+        onHomeClick={() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          setBrowsingPath([]);
+        }}
+        onBranchesClick={() => {
+          document.getElementById('branches')?.scrollIntoView({ behavior: 'smooth' });
+        }}
+        onSearchClick={() => {
+          document.getElementById('search')?.scrollIntoView({ behavior: 'smooth' });
+          const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
+          searchInput?.focus();
+        }}
+        onGalleryClick={() => {
+          document.getElementById('campus-gallery')?.scrollIntoView({ behavior: 'smooth' });
+        }}
+        onCalculatorClick={() => {
+          setShowCalculator(true);
+          setTimeout(() => {
+            document.getElementById('calculator')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        }}
+        onERPClick={() => {
+          setShowERPPortal(true);
+        }}
+        onAIChatClick={() => {
+          document.getElementById('hub-content')?.scrollIntoView({ behavior: 'smooth' });
+        }}
+        onThemeToggle={() => {
+          setTheme(theme === 'light' ? 'dark' : 'light');
+        }}
+        onAuthClick={() => {
+          if (currentUser) {
+            signOut(auth);
+          } else {
+            setIsLoginOpen(true);
+          }
+        }}
+        theme={theme}
+        userDisplayName={currentUser?.displayName}
+        isAdmin={isAdmin}
+      />
     </div>
   );
 }
